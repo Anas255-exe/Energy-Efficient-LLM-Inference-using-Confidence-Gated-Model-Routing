@@ -1,0 +1,12 @@
+{"id": "tqa-1", "dataset": "triviaqa", "question": "Which Lloyd Webber musical premiered in the US on 10th December 1993?", "answers": ["Sunset Blvd.", "Sunset Boulevard", "Sunset Blvd", "West Sunset Boulevard", "Sunset Bulevard"]}
+{"id": "nq-1", "dataset": "nq", "question": "who wrote he ain't heavy he's my brother lyrics", "answers": ["Bobby Scott", "Bob Russell"]}
+{"id": "nq-0", "dataset": "nq", "question": "when was the last time anyone was on the moon", "answers": ["14 December 1972 UTC", "December 1972"]}
+{"id": "sciq-1", "dataset": "sciq", "question": "What term in biotechnology means a genetically exact copy of an organism?", "answers": ["clone"]}
+{"id": "nq-2", "dataset": "nq", "question": "how many seasons of the bastard executioner are there", "answers": ["one", "one season"]}
+{"id": "tqa-2", "dataset": "triviaqa", "question": "Who was the next British Prime Minister after Arthur Balfour?", "answers": ["Campbell-Bannerman", "Campbell Bannerman", "Sir Henry Campbell-Bannerman", "Sir Henry Campbell Bannerman", "Henry Campbell-Bannerman", "Henry Campbell Bannerman"]}
+{"id": "tqa-3", "dataset": "triviaqa", "question": "Who had a 70s No 1 hit with Kiss You All Over?", "answers": ["Sent into exile", "Banishment", "Transported for life", "Forced exile", "Internal exile", "Exile (politics and government)", "Exile in Greek tragedy", "Exiles", "Voluntary exile", "Exile", "Exile and Banishment", "Self-exile", "Banish"]}
+{"id": "sciq-3", "dataset": "sciq", "question": "What is the height above or below sea level called?", "answers": ["elevation"]}
+{"id": "sciq-0", "dataset": "sciq", "question": "Compounds that are capable of accepting electrons, such as o 2 or f2, are called what?", "answers": ["oxidants"]}
+{"id": "tqa-0", "dataset": "triviaqa", "question": "Who was the man behind The Chipmunks?", "answers": ["David Seville"]}
+{"id": "nq-3", "dataset": "nq", "question": "when did the eagles win last super bowl", "answers": ["2017"]}
+{"id": "sciq-2", "dataset": "sciq", "question": "Vertebrata are characterized by the presence of what?", "answers": ["backbone"]}

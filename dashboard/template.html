@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>greengate energy dashboard</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1d1d1f;--ink2:#55565a;--muted:#8a8b90;--rule:#e3e3e0;--save:#2a78d6;--cost:#eb6834;--grid:#ececea;--good:#16794a;--bad:#c62f2f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141416;--card:#1d1d20;--ink:#f2f2f3;--ink2:#b9babf;--muted:#85868c;--rule:#333338;--save:#5b9be6;--cost:#f08458;--grid:#2a2a2e;--good:#4cc38a;--bad:#f07068}}
+:root[data-theme="dark"]{--bg:#141416;--card:#1d1d20;--ink:#f2f2f3;--ink2:#b9babf;--muted:#85868c;--rule:#333338;--save:#5b9be6;--cost:#f08458;--grid:#2a2a2e;--good:#4cc38a;--bad:#f07068}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1080px;margin:0 auto;padding:24px 16px 40px}
+h1{font-size:22px;margin:0 0 4px}p.sub{margin:0 0 18px;color:var(--ink2)}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:end;margin-bottom:16px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink2)}
+select,input[type=range]{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:6px 8px;min-width:200px}
+input[type=range]{padding:0;accent-color:var(--save)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.tile,.card{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
+.tile .k{font-size:12px;color:var(--ink2)}.tile .v{font-size:26px;font-weight:650;margin-top:2px}.tile .d{font-size:12px;color:var(--muted);margin-top:4px}
+.tile .row{display:flex;justify-content:space-between;align-items:baseline;gap:2px 8px;margin-top:6px;flex-wrap:wrap}.tile .row span{font-size:12px;color:var(--ink2)}.tile .row b{font-size:20px;font-weight:650;white-space:nowrap}
+.tile .good{color:var(--good)}.tile .bad{color:var(--bad)}.tile .d.good,.tile .d.bad{font-weight:600}
+.grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}.grid2>*,.tiles>*{min-width:0}@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+.card h2{font-size:14px;margin:0 0 8px;font-weight:600}
+svg{display:block;width:100%;height:auto;overflow:visible}svg text{fill:var(--ink2);font-size:11px}
+.tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:6px 9px;font-size:12px;display:none;box-shadow:0 2px 10px #0002}
+.notes{margin-top:16px;font-size:12.5px;color:var(--ink2)}.notes li{margin:3px 0}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<main>
+<h1>greengate: energy saved by a confidence-gated LLM cascade</h1>
+<p class="sub">The small model answers first. If its token entropy is high, the query goes to the large model. All energy is measured per query on real hardware.</p>
+<div class="controls">
+  <label>Model pair<select id="pair"></select></label>
+  <label>Share of the large model's accuracy kept: <b id="rlab"></b><input id="ret" type="range" min="0.8" max="1" step="0.005" value="0.95"></label>
+  <label>Electricity grid<select id="grid"></select></label>
+</div>
+<div class="tiles" id="tiles"></div>
+<div class="grid2">
+  <div class="card"><h2 id="c1t">Energy saved vs accuracy kept</h2><svg id="c1" viewBox="0 0 560 280"></svg></div>
+  <div class="card"><h2 id="c2t">Energy saved by pair</h2><svg id="c2" viewBox="0 0 440 280"></svg>
+    <div style="font-size:12px;color:var(--ink2);margin-top:6px"><span class="sw" style="background:var(--good)"></span>saves energy <span class="sw" style="background:var(--bad);margin-left:10px"></span>costs more than the large model alone</div></div>
+</div>
+<ul class="notes" id="notes"></ul>
+</main>
+<div class="tip" id="tip"></div>
+<script>
+const DATA = /*DATA*/null;
+const $ = id => document.getElementById(id), P = DATA.pairs, keys = Object.keys(P);
+const pct = (x, s = true) => (s && x > 0 ? "+" : "") + (100 * x).toFixed(0) + "%";
+$("pair").innerHTML = keys.map(k => `<option value="${k}">${k.replace("->", " → ")}</option>`).join("");
+$("pair").value = "T4 4-bit 14B->32B";
+$("grid").innerHTML = Object.entries(DATA.grid).map(([g, f]) => `<option value="${g}">${g} (${f} g CO₂/kWh)</option>`).join("");
+const at = (p, R) => p.curve.reduce((b, c) => Math.abs(c.R - R) < Math.abs(b.R - R) ? c : b);
+const tip = $("tip");
+function showTip(e, html) { tip.innerHTML = html; tip.style.display = "block"; tip.style.left = (e.clientX + 12) + "px"; tip.style.top = (e.clientY + 12) + "px"; }
+function hideTip() { tip.style.display = "none"; }
+
+function draw() {
+  const k = $("pair").value, p = P[k], R = +$("ret").value, g = $("grid").value, c = at(p, R);
+  $("rlab").textContent = (100 * R).toFixed(1) + "%";
+  const [small, big] = k.split(" ").pop().split("->"), J = p.J_large * (1 - c.saving), s = p.s_large * (1 + c.latency_change);
+  const kg = J => J / 3.6e6 * DATA.grid[g] * 1e3;  // kg CO2 per million queries
+  // [label, big model alone, ours, format, change text]; lower is better for all four
+  const rel = (a, b) => Math.abs(100 * (b / a - 1)).toFixed(0) + "%", pts = (a, b) => Math.abs(100 * (b - a)).toFixed(1) + " pts";
+  const tiles = [
+    ["Energy per query", p.J_large, J, v => v.toFixed(1) + " J", rel(p.J_large, J)],
+    ["Hallucination rate", p.err_large, c.err, v => (100 * v).toFixed(1) + "%", pts(p.err_large, c.err)],
+    ["Latency per query", p.s_large, s, v => v.toFixed(2) + " s", rel(p.s_large, s)],
+    [`CO₂ per million queries (${g})`, kg(p.J_large), kg(J), v => v.toFixed(1) + " kg", rel(kg(p.J_large), kg(J))]];
+  const cls = (mine, other) => mine < other - 1e-9 ? "good" : mine > other + 1e-9 ? "bad" : "";
+  $("tiles").innerHTML = tiles.map(([a, base, mine, f, d]) => `<div class="tile"><div class="k">${a}</div>
+      <div class="row"><span>${big} alone</span><b class="${cls(base, mine)}">${f(base)}</b></div>
+      <div class="row"><span>Ours</span><b class="${cls(mine, base)}">${f(mine)}</b></div>
+      <div class="d ${cls(mine, base)}">${mine < base ? "▼" : mine > base ? "▲" : ""} ${d} ${mine < base ? "lower (better)" : mine > base ? "higher (worse)" : "same"}</div></div>`).join("")
+    + `<div class="tile"><div class="k">Sent to ${big}</div><div class="v">${pct(c.escalate, false)}</div><div class="d">of queries; ${small} answers the rest. Accuracy ${(100 * (1 - p.err_large)).toFixed(1)}% → ${(100 * (1 - c.err)).toFixed(1)}%</div></div>`;
+  $("c1t").textContent = `Energy saved vs accuracy kept: ${k.replace("->", " → ")} (${p.platform}, n = ${p.n})`;
+  line(p, R); bars(R);
+}
+
+function line(p, R) {
+  const W = 560, H = 280, m = {l: 44, r: 12, t: 10, b: 34}, xs = R => m.l + (R - 0.8) / 0.2 * (W - m.l - m.r);
+  const vals = p.curve.map(c => c.saving), raw = [Math.min(-0.2, ...vals), Math.max(0.2, ...vals)];
+  const step = raw[1] - raw[0] > 1 ? 2 : 1, lo = Math.floor(raw[0] * 10 / step) * step / 10, hi = Math.ceil(raw[1] * 10 / step) * step / 10;
+  const ys = v => m.t + (hi - v) / (hi - lo) * (H - m.t - m.b);
+  let s = "";
+  for (let i = Math.round(lo * 10); i <= Math.round(hi * 10); i += step) { const v = i / 10; s += `<line x1="${m.l}" x2="${W - m.r}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${ys(v) + 4}" text-anchor="end">${pct(v)}</text>`; }
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${ys(0)}" y2="${ys(0)}" stroke="var(--muted)"/>`;
+  for (let r = 0.8; r <= 1.0001; r += 0.05) s += `<text x="${xs(r)}" y="${H - 14}" text-anchor="middle">${(100 * r).toFixed(0)}%</text>`;
+  s += `<text x="${(W + m.l) / 2}" y="${H}" text-anchor="middle">share of large-model accuracy kept</text>`;
+  s += `<path d="${p.curve.map((c, i) => (i ? "L" : "M") + xs(c.R) + "," + ys(c.saving)).join("")}" fill="none" stroke="var(--save)" stroke-width="2"/>`;
+  const c = at(p, R);
+  s += `<line x1="${xs(c.R)}" x2="${xs(c.R)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+  s += `<circle cx="${xs(c.R)}" cy="${ys(c.saving)}" r="5" fill="${c.saving >= 0 ? "var(--good)" : "var(--bad)"}" stroke="var(--card)" stroke-width="2"/>`;
+  s += `<rect id="hit" x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent"/>`;
+  const svg = $("c1"); svg.innerHTML = s;
+  svg.querySelector("#hit").onmousemove = e => {
+    const b = svg.getBoundingClientRect(), x = (e.clientX - b.left) * W / b.width, q = at(p, 0.8 + (x - m.l) / (W - m.l - m.r) * 0.2);
+    showTip(e, `<b>${(100 * q.R).toFixed(1)}% kept</b><br>saving ${pct(q.saving)}<br>escalated ${pct(q.escalate, false)}<br>hallucination ${(100 * q.err).toFixed(1)}%`);
+  };
+  svg.querySelector("#hit").onmouseleave = hideTip;
+}
+
+function bars(R) {
+  const W = 440, rowH = 28, m = {l: 150, r: 46, t: 4}, H = m.t + keys.length * rowH + 4;
+  const v = keys.map(k => at(P[k], R).saving), lo = Math.min(-0.6, ...v) - 0.2, hi = Math.max(0.6, ...v) + 0.2;  // room for value labels
+  const xs = x => m.l + (x - lo) / (hi - lo) * (W - m.l - m.r);
+  let s = `<line x1="${xs(0)}" x2="${xs(0)}" y1="0" y2="${H}" stroke="var(--muted)"/>`;
+  keys.forEach((k, i) => {
+    const y = m.t + i * rowH, x0 = Math.min(xs(0), xs(v[i])), w = Math.max(2, Math.abs(xs(v[i]) - xs(0)));
+    s += `<text x="${m.l - 8}" y="${y + 17}" text-anchor="end" style="${k === $("pair").value ? "font-weight:700;fill:var(--ink)" : ""}">${k.replace("->", " → ").replace("T4 ", "")}</text>`;
+    s += `<rect x="${x0}" y="${y + 6}" width="${w}" height="16" rx="4" fill="${v[i] >= 0 ? "var(--good)" : "var(--bad)"}"><title>${k}: ${pct(v[i])}</title></rect>`;
+    s += `<text x="${v[i] >= 0 ? xs(v[i]) + 5 : x0 - 5}" y="${y + 18}" text-anchor="${v[i] >= 0 ? "start" : "end"}">${pct(v[i])}</text>`;
+  });
+  $("c2").setAttribute("viewBox", `0 0 ${W} ${H}`); $("c2").innerHTML = s;
+  $("c2t").textContent = `Energy saved by pair at ${(100 * R).toFixed(1)}% accuracy kept`;
+}
+
+const r = DATA.router, notes = [
+  "Each tile compares the large model alone with ours (the cascade); green is the better number, red the worse. The slider sets what share of the large model's accuracy ours must keep (for 14B → 32B, 95% of 52.8% is about 50% correct).",
+  "Every query pays for the small model; escalated queries also pay for the large model. Hallucination rate = share of questions answered wrongly (the models never abstain); these are hard open-domain questions, so even 32B misses 47%.",
+  "Latency is sequential (small model first, then the large model if escalated), measured at batch 1 on 2x T4 or an M2. Data-centre GPUs answer faster in absolute seconds; we have not measured whether the ratio holds there.",
+  "Energy: Apple M2 via macmon (SoC + DRAM, idle subtracted); T4 via NVML (both GPUs, gross), batch 1. CO₂ = device energy × grid factor, with no data-centre overhead (PUE).",
+  "Grid factors: India 727 g/kWh (CEA CO₂ Baseline Database v20, FY2023-24); World 458 gCO₂e/kWh (Ember Global Electricity Review 2026, 2025 data); France 19.6 gCO₂e/kWh (RTE Bilan électrique 2025).",
+  "The threshold here is chosen on the same questions it is scored on. Held-out results are in results_eval/PROBE_TRANSFER.md."];
+if (r) notes.push(`Live router (src/route.py, M2 3B → 7B, threshold set on separate questions): ${r.n} test questions, ${pct(r.escalated, false)} escalated, accuracy ${(100 * r.acc_router).toFixed(1)}% vs ${(100 * r.acc_7b).toFixed(1)}% always-7B (${(100 * r.retention).toFixed(1)}% kept), energy ${pct(r.saving)} vs always-7B.`);
+$("notes").innerHTML = notes.map(n => `<li>${n}</li>`).join("");
+["pair", "ret", "grid"].forEach(id => $(id).oninput = draw);
+draw();
+</script>
+</body>
+</html>

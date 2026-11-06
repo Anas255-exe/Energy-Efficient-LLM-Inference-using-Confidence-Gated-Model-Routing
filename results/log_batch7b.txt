@@ -1,0 +1,6 @@
+{'model': '7b', 'batch': 1, 'rep': 0, 'n': 64, 'seconds': 85.74149203300476, 'J_per_query_sys_net': 1.4373095837566412, 'J_per_query_soc_net': 2.326383817595521}
+{'model': '7b', 'batch': 8, 'rep': 0, 'n': 64, 'seconds': 53.71086001396179, 'J_per_query_sys_net': 0.8059284945486596, 'J_per_query_soc_net': 2.0619137233038445}
+{'model': '7b', 'batch': 1, 'rep': 1, 'n': 64, 'seconds': 81.80536794662476, 'J_per_query_sys_net': 1.16477559484205, 'J_per_query_soc_net': 2.183452120511333}
+{'model': '7b', 'batch': 8, 'rep': 1, 'n': 64, 'seconds': 54.46362781524658, 'J_per_query_sys_net': 0.8132703848843539, 'J_per_query_soc_net': 2.076553538127732}
+{'model': '7b', 'batch': 1, 'rep': 2, 'n': 64, 'seconds': 78.59023308753967, 'J_per_query_sys_net': 1.100156912481153, 'J_per_query_soc_net': 2.0682900735072485}
+{'model': '7b', 'batch': 8, 'rep': 2, 'n': 64, 'seconds': 54.11992335319519, 'J_per_query_sys_net': 0.8383181005178741, 'J_per_query_soc_net': 2.0714424154943427}

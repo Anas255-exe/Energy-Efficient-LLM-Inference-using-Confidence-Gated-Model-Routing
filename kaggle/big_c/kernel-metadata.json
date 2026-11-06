@@ -1,0 +1,13 @@
+{
+ "id": "anasdtu/greengate-big-c",
+ "title": "greengate big C",
+ "code_file": "greengate_big_c.ipynb",
+ "language": "python",
+ "kernel_type": "notebook",
+ "is_private": true,
+ "enable_gpu": true,
+ "enable_internet": true,
+ "dataset_sources": [],
+ "competition_sources": [],
+ "kernel_sources": []
+}

@@ -1,0 +1,12 @@
+# Local environments and downloaded model weights
+.venv/
+venv/
+models/
+__pycache__/
+*.py[cod]
+
+# Large intermediate artifacts produced during analysis
+*_hidden.npy
+*.tmp
+.DS_Store
+Thumbs.db
